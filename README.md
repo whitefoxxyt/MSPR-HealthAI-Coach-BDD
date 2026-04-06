@@ -53,6 +53,16 @@ port: 5432 (configurable via DB_PORT)
 database: healthai
 ```
 
+## Export des donnees nettoyees
+
+Le script `scripts/export_clean_data.sh` exporte toutes les tables en CSV (une fois l'ETL execute).
+L'API lit directement PostgreSQL — les CSV sont uniquement des livrables pour les data scientists.
+
+```bash
+./scripts/export_clean_data.sh ./exports
+# Genere exports/users.csv, exports/exercises.csv, etc.
+```
+
 ## Schema de la base de donnees
 
 ```mermaid
