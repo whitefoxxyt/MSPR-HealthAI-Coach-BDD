@@ -174,9 +174,6 @@ erDiagram
         jsonb details
     }
 
-    users ||--o{ nutrition_entries : "user_id (sans FK)"
-    users ||--o{ exercise_entries : "user_id (sans FK)"
-    users ||--o{ biometric_entries : "user_id (sans FK)"
 ```
 
-Tables independantes (pas de FK) : `exercises`, `diet_recommendations`, `etl_logs`.
+Tables independantes (pas de FK) : `exercises`, `diet_recommendations`, `etl_logs`, `nutrition_entries`, `exercise_entries`, `biometric_entries`.
