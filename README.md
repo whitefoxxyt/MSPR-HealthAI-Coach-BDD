@@ -94,6 +94,7 @@ erDiagram
         varchar category
         varchar meal_type
         decimal calories
+        decimal cholesterol_mg
         decimal protein_g
         decimal carbs_g
         decimal fat_g
