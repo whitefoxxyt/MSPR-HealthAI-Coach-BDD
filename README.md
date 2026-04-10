@@ -139,7 +139,7 @@ erDiagram
     }
     diet_recommendations {
         bigserial id PK
-        varchar external_patient_id
+        varchar external_patient_id UK
         integer age
         varchar gender
         decimal weight_kg
