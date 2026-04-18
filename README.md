@@ -2,27 +2,17 @@
 
 Microservice base de donnees PostgreSQL 16 pour la plateforme HealthAI Coach.
 
-Ce depot est autonome et agnostique : il ne depend d'aucun autre microservice.
-Il cree le reseau Docker `mspr_data_network` que les autres services (ETL, API, AUTH) peuvent rejoindre en tant que reseau externe.
+Ce depot contient uniquement les migrations SQL. Il ne depend d'aucun autre microservice.
+Le runtime (Docker) est gere par le `docker-compose.yml` a la racine du monorepo.
 
 ## Demarrage
 
 ```bash
-cp .env.example .env
-# Editer .env avec vos valeurs
-docker compose up -d
+# Depuis la racine du monorepo
+docker compose up -d db
 ```
 
 Le service est pret quand le healthcheck passe (`healthy`).
-
-## Variables d'environnement
-
-| Variable | Defaut | Description |
-|----------|--------|-------------|
-| `DB_NAME` | `healthai` | Nom de la base |
-| `DB_USER` | `healthai_user` | Utilisateur PostgreSQL |
-| `DB_PASSWORD` | `password` | Mot de passe (a changer) |
-| `DB_PORT` | `5432` | Port expose sur l'hote |
 
 ## Migrations
 
@@ -33,11 +23,15 @@ Les migrations SQL sont dans `migrations/` et sont executees automatiquement au 
 | `V1__init_schema.sql` | Schema principal : users, exercises, nutrition_entries, exercise_entries, biometric_entries, etl_logs |
 | `V2__diet_recommendations.sql` | Table diet_recommendations |
 | `V3__add_unique_constraints.sql` | Contraintes d'unicite pour les ON CONFLICT |
+| `V4__split_auth_from_profile.sql` | Separation auth : suppression email/password_hash/role/is_premium, ajout auth_user_id |
+| `V5__remove_user_fk_constraints.sql` | Suppression des FK user_id sur les tables ETL (datasets heterogenes) |
+| `V6__add_demographics_to_biometric_entries.sql` | Ajout age, gender, experience_level dans biometric_entries |
+| `V7__etl_logs_details_jsonb.sql` | Conversion de etl_logs.details de TEXT vers JSONB |
 
 ## Reseau Docker
 
-Ce compose cree le reseau `mspr_data_network`.
-Pour connecter un autre microservice :
+Le reseau `mspr_data_network` est cree par le compose racine.
+Pour connecter un service externe :
 
 ```yaml
 networks:
@@ -49,8 +43,9 @@ networks:
 
 ```
 host: localhost
-port: 5432 (configurable via DB_PORT)
+port: 5432
 database: healthai
+user: healthai_user
 ```
 
 ## Export des donnees nettoyees
@@ -69,11 +64,8 @@ L'API lit directement PostgreSQL — les CSV sont uniquement des livrables pour 
 erDiagram
     users {
         bigserial id PK
-        varchar email
+        varchar auth_user_id UK
         varchar username
-        varchar password_hash
-        varchar role
-        boolean is_premium
         integer age
         varchar gender
         decimal weight_kg
@@ -84,7 +76,7 @@ erDiagram
     }
     exercises {
         bigserial id PK
-        varchar external_id
+        varchar external_id UK
         varchar name
         text[] body_parts
         text[] target_muscles
@@ -97,11 +89,12 @@ erDiagram
     }
     nutrition_entries {
         bigserial id PK
-        bigint user_id FK
+        bigint user_id
         varchar food_name
         varchar category
         varchar meal_type
         decimal calories
+        decimal cholesterol_mg
         decimal protein_g
         decimal carbs_g
         decimal fat_g
@@ -115,7 +108,7 @@ erDiagram
     }
     exercise_entries {
         bigserial id PK
-        bigint user_id FK
+        bigint user_id
         varchar workout_type
         decimal duration_min
         decimal calories_burned
@@ -128,7 +121,7 @@ erDiagram
     }
     biometric_entries {
         bigserial id PK
-        bigint user_id FK
+        bigint user_id
         decimal weight_kg
         decimal height_cm
         decimal bmi
@@ -137,13 +130,16 @@ erDiagram
         integer heart_rate_avg
         integer heart_rate_max
         varchar blood_pressure
+        integer age
+        varchar gender
+        integer experience_level
         varchar source
         varchar status
         timestamp created_at
     }
     diet_recommendations {
         bigserial id PK
-        varchar external_patient_id
+        varchar external_patient_id UK
         integer age
         varchar gender
         decimal weight_kg
@@ -176,12 +172,9 @@ erDiagram
         integer rows_rejected
         integer error_count
         varchar status
-        text details
+        jsonb details
     }
 
-    users ||--o{ nutrition_entries : "user_id"
-    users ||--o{ exercise_entries : "user_id"
-    users ||--o{ biometric_entries : "user_id"
 ```
 
-Tables independantes (pas de FK) : `exercises`, `diet_recommendations`, `etl_logs`.
+Tables independantes (pas de FK) : `exercises`, `diet_recommendations`, `etl_logs`, `nutrition_entries`, `exercise_entries`, `biometric_entries`.
