@@ -1,6 +1,6 @@
 # MSPR HealthAI Coach - BDD
 
-Microservice base de donnees PostgreSQL 16 pour la plateforme HealthAI Coach.
+Microservice base de donnees PostgreSQL 17 pour la plateforme HealthAI Coach.
 
 Ce depot contient uniquement les migrations SQL. Il ne depend d'aucun autre microservice.
 Le runtime (Docker) est gere par le `docker-compose.yml` a la racine du monorepo.
