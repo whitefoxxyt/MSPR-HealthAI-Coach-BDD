@@ -1,0 +1,11 @@
+.git
+.gitignore
+.gitattributes
+.github
+README.md
+scripts
+Dockerfile*
+docker-compose*
+.dockerignore
+.env
+*.md

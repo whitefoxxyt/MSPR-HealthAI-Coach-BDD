@@ -1,0 +1,58 @@
+name: CI - DB
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validation des migrations SQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: healthai_test
+          POSTGRES_USER: healthai_user
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation du client PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Application séquentielle des migrations
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: healthai_user
+          PGPASSWORD: test
+          PGDATABASE: healthai_test
+        run: |
+          set -e
+          for f in $(ls migrations/V*__*.sql | sort -V); do
+            echo "Applying $f..."
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+  publish:
+    name: Publication de l'image Docker
+    needs: [validate]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/docker-publish.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
