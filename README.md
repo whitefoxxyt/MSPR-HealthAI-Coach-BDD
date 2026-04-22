@@ -20,13 +20,13 @@ Les migrations SQL sont dans `migrations/` et sont executees automatiquement au 
 
 | Fichier | Contenu |
 |---------|---------|
-| `V1__init_schema.sql` | Schema principal : users, exercises, nutrition_entries, exercise_entries, biometric_entries, etl_logs |
+| `V1__init_schema.sql` | Schema principal : users, exercises, nutrition_entries, exercise_entries, biometric_entries, etl_logs + index |
 | `V2__diet_recommendations.sql` | Table diet_recommendations |
-| `V3__add_unique_constraints.sql` | Contraintes d'unicite pour les ON CONFLICT |
-| `V4__split_auth_from_profile.sql` | Separation auth : suppression email/password_hash/role/is_premium, ajout auth_user_id |
-| `V5__remove_user_fk_constraints.sql` | Suppression des FK user_id sur les tables ETL (datasets heterogenes) |
-| `V6__add_demographics_to_biometric_entries.sql` | Ajout age, gender, experience_level dans biometric_entries |
-| `V7__etl_logs_details_jsonb.sql` | Conversion de etl_logs.details de TEXT vers JSONB |
+| `V3__add_unique_constraints.sql` | Contraintes UNIQUE NULLS NOT DISTINCT pour les ON CONFLICT |
+| `V4__fix_nutrition_schema.sql` | Ajout colonne carbsg dans nutrition_entries (copie depuis carbs_g) |
+| `V5__add_missing_columns.sql` | Ajout age (IF NOT EXISTS) dans biometric_entries |
+| `V6__biometric_add_demographics.sql` | Ajout gender, experience_level (IF NOT EXISTS) dans biometric_entries |
+| `V7__drop_users_table.sql` | Suppression de la table users et des FK user_id (datasets sources anonymises) |
 
 ## Reseau Docker
 
@@ -41,8 +41,19 @@ networks:
 
 ## Connexion directe
 
+Depuis la machine hote (port mappe) :
+
 ```
 host: localhost
+port: 5434
+database: healthai
+user: healthai_user
+```
+
+Depuis un autre conteneur du reseau `mspr_data_network` :
+
+```
+host: mspr-healthai-db
 port: 5432
 database: healthai
 user: healthai_user
@@ -62,18 +73,6 @@ L'API lit directement PostgreSQL — les CSV sont uniquement des livrables pour 
 
 ```mermaid
 erDiagram
-    users {
-        bigserial id PK
-        varchar auth_user_id UK
-        varchar username
-        integer age
-        varchar gender
-        decimal weight_kg
-        decimal height_cm
-        varchar objective
-        timestamp created_at
-        timestamp last_activity
-    }
     exercises {
         bigserial id PK
         varchar external_id UK
@@ -89,7 +88,6 @@ erDiagram
     }
     nutrition_entries {
         bigserial id PK
-        bigint user_id
         varchar food_name
         varchar category
         varchar meal_type
@@ -97,6 +95,7 @@ erDiagram
         decimal cholesterol_mg
         decimal protein_g
         decimal carbs_g
+        decimal carbsg
         decimal fat_g
         decimal fiber_g
         decimal sugars_g
@@ -108,7 +107,6 @@ erDiagram
     }
     exercise_entries {
         bigserial id PK
-        bigint user_id
         varchar workout_type
         decimal duration_min
         decimal calories_burned
@@ -121,7 +119,6 @@ erDiagram
     }
     biometric_entries {
         bigserial id PK
-        bigint user_id
         decimal weight_kg
         decimal height_cm
         decimal bmi
@@ -172,9 +169,9 @@ erDiagram
         integer rows_rejected
         integer error_count
         varchar status
-        jsonb details
+        text details
     }
 
 ```
 
-Tables independantes (pas de FK) : `exercises`, `diet_recommendations`, `etl_logs`, `nutrition_entries`, `exercise_entries`, `biometric_entries`.
+Les 6 tables metier sont toutes independantes (pas de FK entre elles). La table `users` du schema initial a ete supprimee en V7 (datasets sources anonymises).

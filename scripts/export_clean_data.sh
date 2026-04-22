@@ -17,7 +17,6 @@ CONTAINER="mspr-healthai-db"
 echo "Export vers $OUTPUT_DIR ..."
 
 tables=(
-    "users"
     "exercises"
     "nutrition_entries"
     "exercise_entries"
