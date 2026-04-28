@@ -71,6 +71,10 @@ L'API lit directement PostgreSQL — les CSV sont uniquement des livrables pour 
 # Genere exports/users.csv, exports/exercises.csv, etc.
 ```
 
+## Modele de donnees
+
+Le modele relationnel complet (ERD MSPR1 + MSPR2, tableau des migrations V8/V9, justifications du retrait des FK `user_id`, du choix `JSONB` et de la strategie `inputs_hash`) est documente dans [`docs/data_model.md`](docs/data_model.md).
+
 ## Schema de la base de donnees
 
 ```mermaid
