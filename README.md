@@ -27,6 +27,8 @@ Les migrations SQL sont dans `migrations/` et sont executees automatiquement au 
 | `V5__add_missing_columns.sql` | Ajout age (IF NOT EXISTS) dans biometric_entries |
 | `V6__biometric_add_demographics.sql` | Ajout gender, experience_level (IF NOT EXISTS) dans biometric_entries |
 | `V7__drop_users_table.sql` | Suppression de la table users et des FK user_id (datasets sources anonymises) |
+| `V8__ai_nutrition_tables.sql` | Tables AI-Nutrition (MSPR2) : meal_analyses, meal_plans, nutrition_goals + index |
+| `V9__ai_nutrition_enrichment.sql` | Enrichissement AI-Nutrition : nutrition_goals.health_goal (CHECK), meal_plans.inputs_hash (cache LLM) + index, meal_analyses.recommendations JSONB |
 
 ## Reseau Docker
 
