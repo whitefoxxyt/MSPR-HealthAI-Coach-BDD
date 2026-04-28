@@ -146,19 +146,21 @@ Aucune FK n'est materialisee entre les tables. Les tables MSPR1 (`exercises`, `n
 | V8 | `meal_analyses` | `id` | `BIGSERIAL PK` | Identifiant technique de l'analyse photo. |
 | V8 | `meal_analyses` | `user_id` | `BIGINT NOT NULL` | Proprietaire de l'analyse, decode du JWT cote AI-Nutrition (pas de FK, cf. V7). |
 | V8 | `meal_analyses` | `photo_url` | `VARCHAR(500)` | URL de la photo soumise (stockage externe). |
-| V8 | `meal_analyses` | `detected_foods` | `JSONB DEFAULT '[]'` | Liste d'aliments reconnus par HuggingFace, structure libre (label + bbox + score). |
-| V8 | `meal_analyses` | `macros` | `JSONB DEFAULT '{}'` | Macronutriments agreges (kcal, P/G/L), schema susceptible d'evoluer. |
-| V8 | `meal_analyses` | `confidence_scores` | `JSONB DEFAULT '{}'` | Scores de confiance par aliment detecte. |
-| V8 | `meal_analyses` | `created_at` | `TIMESTAMP NOT NULL` | Trace temporelle de l'analyse. |
+| V8 | `meal_analyses` | `detected_foods` | `JSONB NOT NULL DEFAULT '[]'` | Liste d'aliments reconnus par HuggingFace, structure libre (label + bbox + score). |
+| V8 | `meal_analyses` | `macros` | `JSONB NOT NULL DEFAULT '{}'` | Macronutriments agreges (kcal, P/G/L), schema susceptible d'evoluer. |
+| V8 | `meal_analyses` | `confidence_scores` | `JSONB NOT NULL DEFAULT '{}'` | Scores de confiance par aliment detecte. |
+| V8 | `meal_analyses` | `created_at` | `TIMESTAMP NOT NULL DEFAULT NOW()` | Trace temporelle de l'analyse. |
+| V8 | `meal_analyses` | _indexes_ | `(user_id)`, `(created_at DESC)` | Filtrage par utilisateur, tri chronologique. |
 | V8 | `meal_plans` | `id` | `BIGSERIAL PK` | Identifiant technique du plan. |
 | V8 | `meal_plans` | `user_id` | `BIGINT NOT NULL` | Beneficiaire du plan, decode du JWT. |
-| V8 | `meal_plans` | `plan` | `JSONB DEFAULT '{}'` | Plan repas brut renvoye par le LLM (Ollama / Gemma3:4b), forme libre. |
-| V8 | `meal_plans` | `objective` | `VARCHAR(100)` | Objectif declare en clair (resume du `plan`). |
-| V8 | `meal_plans` | `constraints` | `JSONB DEFAULT '{}'` | Contraintes utilisateur (allergies, regime, budget, duree). |
-| V8 | `meal_plans` | `generated_at` | `TIMESTAMP NOT NULL` | Trace temporelle de la generation. |
+| V8 | `meal_plans` | `plan` | `JSONB NOT NULL DEFAULT '{}'` | Plan repas brut renvoye par le LLM (Ollama / Gemma3:4b), forme libre. |
+| V8 | `meal_plans` | `objective` | `VARCHAR(100)` | Objectif declare par l'utilisateur, copie en clair pour faciliter le filtrage. |
+| V8 | `meal_plans` | `constraints` | `JSONB NOT NULL DEFAULT '{}'` | Contraintes utilisateur (allergies, regime, budget, duree). |
+| V8 | `meal_plans` | `generated_at` | `TIMESTAMP NOT NULL DEFAULT NOW()` | Trace temporelle de la generation. |
+| V8 | `meal_plans` | _indexes_ | `(user_id)`, `(generated_at DESC)` | Filtrage par utilisateur, tri chronologique. |
 | V8 | `nutrition_goals` | `user_id` | `BIGINT PK` | Une ligne par utilisateur, PK = `user_id` (relation 1-1). |
 | V8 | `nutrition_goals` | `calories_target` | `INTEGER` | Cible calorique journaliere. |
-| V8 | `nutrition_goals` | `protein_g`, `carbs_g`, `fat_g` | `DECIMAL(8,2)` | Cibles macronutriments en grammes. |
+| V8 | `nutrition_goals` | `protein_g`, `carbs_g`, `fat_g` | `DECIMAL(8, 2)` | Cibles macronutriments en grammes. |
 | V8 | `nutrition_goals` | `allergies` | `TEXT[]` | Allergies declarees, tableau natif PostgreSQL. |
 | V8 | `nutrition_goals` | `diet_type` | `VARCHAR(50)` | Regime alimentaire (vegan, halal, etc.). |
 | V9 | `nutrition_goals` | `health_goal` | `VARCHAR(30) CHECK` | Objectif sante (`weight_loss`, `muscle_gain`, `balance`, `sport_performance`). `NULL` = comportement par defaut `balance`. |
@@ -192,6 +194,7 @@ Les plans repas generes par LLM (Ollama / Gemma3:4b) ont un cout de generation e
 - **Canonicalisation des inputs** cote AI-Nutrition : objectif, allergies triees alphabetiquement, budget, regime, duree, regroupes en JSON canonique.
 - **Hash SHA256** de cette representation -> chaine de 64 hex.
 - **Lookup** : avant d'appeler le LLM, le service `SELECT plan FROM meal_plans WHERE inputs_hash = $1 LIMIT 1`. Si une ligne existe, le plan est reutilise tel quel.
-- **Insertion** : un nouveau plan genere est ecrit avec son `inputs_hash`, alimentant le cache pour les requetes futures (le meme utilisateur ou un autre avec des inputs equivalents).
+- **Insertion** : un nouveau plan genere est ecrit avec son `inputs_hash`, alimentant le cache pour les requetes futures.
+- **Cache global, partage entre utilisateurs.** `inputs_hash` n'inclut pas `user_id` : un plan genere pour l'utilisateur A peut etre reservi a l'utilisateur B avec des inputs equivalents. C'est intentionnel (les plans ne contiennent aucune donnee personnelle attachee au demandeur initial) et c'est ce qui rend le cache reellement efficace au-dela d'un seul compte.
 
 Le cache est porte par la BDD (pas par Redis ou un cache applicatif) pour rester operationnel sans dependance supplementaire et survivre au redemarrage des microservices.
